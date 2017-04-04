@@ -1,0 +1,55 @@
+#!/usr/bin/env python
+import logging
+
+import yaml
+import argparse
+
+log = logging.getLogger("comborun")
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.DEBUG)
+
+
+def parse_args():
+    arg_parser = argparse.ArgumentParser(usage="help text")
+    arg_parser.add_argument("config")
+    args = arg_parser.parse_args()
+    log.debug(args)
+    return args
+
+
+def read_doc(yaml_file):
+    with open(yaml_file, 'r') as f:
+        return yaml.load(f)
+
+
+def build_command(combo):
+    """
+
+    :type combo: dict
+    """
+    cli = combo["cli"]
+    params = combo.get("params", [])
+
+    env = combo.get("env", {})
+    env_str = "".join(["{}={};".format(k, v) for k, v in env.items()])
+
+    opts = combo.get("opts", {})
+    redirects = []
+    if "stderr" in opts:
+        redirects.append("1> " + opts["stderr"])
+
+    if "stdout" in opts:
+        redirects.append("2> " + opts["stdout"])
+
+    redirects_str = " ".join(redirects)
+    return "{env} {cli} {params} {redirects}".format(env=env_str, cli=cli,params=" ".join(params),
+                                                     redirects=redirects_str).strip()
+
+
+if __name__ == "__main__":
+    args = parse_args()
+    doc = read_doc(args.config)
+    log.debug(doc)
+    for k, v in doc.items():
+        command = build_command(v)
+        log.info("Command {}".format(k))
+        print(command)
